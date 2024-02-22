@@ -32,10 +32,7 @@ class CommunicationManager:
         try:
             # Создаем сокет и применяем предварительный обработчик
             self.socket = self.context.socket(socket_type)
-            if self.pre_processor:
-                self.pre_processor(self.socket)
-            # Привязываем или подключаем сокет в зависимости от типа
-            self.socket.bind(self.address) if socket_type == zmq.PUSH else self.socket.connect(self.address)
+            self.socket.bind(self.address)
         except zmq.ZMQError as e:
             # Обрабатываем ошибку при создании сокета
             if self.error_handler:
@@ -59,33 +56,26 @@ class CommunicationManager:
             if self.error_handler:
                 self.error_handler(e)
 
-# Пример использования
-send_address = "tcp://*:5555"
-receive_address = "tcp://localhost:5555"
+if __name__ == "__main__":
+    address_cm1 = "tcp://localhost:5556"
+    address_cm2 = "tcp://localhost:5555"
 
-# Использование строителя для отправителя
-sender_manager = (
-    CommunicationManagerBuilder(send_address)
-    .with_error_handler()
-    .with_pre_processor(lambda socket: print("Pre-processing for sender"))
-    .build()
-)
+    cm1 = CommunicationManager(address_cm1)
+    cm2 = CommunicationManager(address_cm2)
 
-# Использование строителя для приемника
-receiver_manager = (
-    CommunicationManagerBuilder(receive_address)
-    .with_error_handler()
-    .with_pre_processor(lambda socket: print("Pre-processing for receiver"))
-    .build()
-)
-while True:
     # Создание сокетов
-    sender_manager.create_socket(zmq.PUSH)
-    receiver_manager.create_socket(zmq.PULL)
+    cm1.create_socket(zmq.PAIR)
+    cm2.create_socket(zmq.PAIR)
 
-    # Отправка сообщения
-    sender_manager.send_message("Сообщение от отправителя")
+    # Пример обмена сообщениями
+    while True:
+        # Отправка сообщения от cm1
+        message_cm1 = f"Сообщение от CM1: Hi"
+        cm1.send_message(message_cm1)
+        print(f"Отправлено CM1: {message_cm1}")
+        time.sleep(1)
+        # Прием сообщения в cm2
+        received_message_cm2 = cm2.receive_message()
+        print(f"Получено CM2: {received_message_cm2}")
 
-    # Прием сообщения
-    received_message = receiver_manager.receive_message()
-    print(f"Получено сообщение: {received_message}")
+        time.sleep(1)
