@@ -1,40 +1,89 @@
 import zmq
 import logging
+import os
 
-import zmq
-import logging
-
-# Строитель для CommunicationManager
 class CommunicationManagerBuilder:
+    """
+    Builder class for creating a CommunicationManager with optional configurations.
+    """
+
+
     def __init__(self, address):
+        """
+        Initialize the builder with the specified address.
+
+        Parameters:
+        - address (str): The address for the CommunicationManager.
+        """
         self.communication_manager = CommunicationManager(address)
 
+
     def with_error_handler(self):
-        # Настраиваем обработчик ошибок в CommunicationManager
+        """
+        Configure the CommunicationManager to use its default error handler.
+
+        Returns:
+        - self: The builder instance for method chaining.
+        """
         self.communication_manager.error_handler = self.communication_manager.default_error_handler
         return self
 
+
     def with_logger(self, logger_creator):
-        # Настраиваем предварительный обработчик в CommunicationManager
+        """
+        Configure the CommunicationManager with a logger using the provided logger creator function.
+
+        Parameters:
+        - logger_creator (callable): A function that creates a logger.
+
+        Returns:
+        - self: The builder instance for method chaining.
+        """
         self.communication_manager.logger = CommunicationManager.default_logger()
         return self
 
+
     def build(self):
-        # Возвращаем готовый CommunicationManager
+        """
+        Build and return the configured CommunicationManager instance.
+
+        Returns:
+        - CommunicationManager: The configured CommunicationManager instance.
+        """
         return self.communication_manager
 
-# Основной класс CommunicationManager
+
 class CommunicationManager:
+    """
+    Main class for managing communication using ZeroMQ.
+    """
+
     def __init__(self, address):
+        """
+        Initialize the CommunicationManager with the specified address.
+
+        Parameters:
+        - address (str): The address for the CommunicationManager.
+        """
         self.address = address
         self.context = zmq.Context()
         self.error_handler = self.default_error_handler
-        self.logger = None #self.default_logger('communication_logs.log')
+        self.logger = None
         self.socket = None
 
+
     def create_socket(self, socket_type, start_func):
+        """
+        Create a ZeroMQ socket and apply the specified start function.
+
+        Parameters:
+        - socket_type (int): The type of the ZeroMQ socket.
+        - start_func (str): Either 'bind' or 'connect' to start the socket.
+
+        Raises:
+        - zmq.ZMQError: If there is an error during socket creation or configuration.
+        """
         try:
-            # Создаем сокет и применяем предварительный обработчик
             self.socket = self.context.socket(socket_type)
             if start_func == 'bind':
                 self.socket.bind(self.address)
@@ -43,46 +92,88 @@ class CommunicationManager:
                 self.socket.connect(self.address)
                 if self.logger: self.logger.info(f"OK: Socket is open in {start_func} mode at {self.address}")
         except zmq.ZMQError as e:
-            # Обрабатываем ошибку при создании сокета
             if self.error_handler:
                 self.error_handler(e)
 
+
     def send_message(self, message):
+        """
+        Send a message using the configured socket.
+
+        Parameters:
+        - message (protobuf): The message to be sent.
+
+        Raises:
+        - zmq.ZMQError: If there is an error during message sending.
+        """
         try:
-            # Отправляем сообщение
             self.socket.send_string(message)
             if self.logger: self.logger.info(f"OK: Message sent to {self.address}")
         except zmq.ZMQError as e:
-            # Обрабатываем ошибку при отправке сообщения
             if self.error_handler:
                 self.error_handler(e)
 
+
     def receive_message(self):
+        """
+        Receive a message using the configured socket.
+
+        Returns:
+        - protobuf: The received message.
+
+        Raises:
+        - zmq.ZMQError: If there is an error during message reception.
+        """
         try:
-            # Принимаем сообщение
             if self.logger: self.logger.info(f"OK: Message received from {self.address}")
             return self.socket.recv_string()
         except zmq.ZMQError as e:
-            # Обрабатываем ошибку при приеме сообщения
             if self.error_handler:
                 self.error_handler(e)
 
+
     def close_socket(self):
+        """
+        Close the socket if it is open.
+        """
         if self.socket:
             self.socket.close()
 
+
     def close_context(self):
+        """
+        Terminate the ZeroMQ context if it is active.
+        """
         if self.context:
             self.context.term()
 
+
     def default_error_handler(self, error):
+        """
+        Default error handler method. Closes the socket and terminates the context on error.
+
+        Parameters:
+        - error (zmq.ZMQError): The ZeroMQ error that occurred.
+        """
         self.close_socket()
         self.close_context()
         if self.logger: self.logger.error(f"ERROR: {error}")
 
+
     @classmethod
-    def default_logger(cls, log_file_path='communication_logs.log'):
-        # Настройка логгера
+    def default_logger(cls, log_file_name='communication_logs.log'):
+        """
+        Create and configure a default logger.
+
+        Parameters:
+        - log_file_path (str): The path to the log file.
+
+        Returns:
+        - logging.Logger: The configured logger instance.
+        """
+        logs_folder_path = os.path.join(os.path.dirname(__file__), '..', 'Logs')
+        log_file_path = os.path.join(logs_folder_path, log_file_name)
+
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s',
                             datefmt='%Y-%m-%d %H:%M:%S')
@@ -91,7 +182,6 @@ class CommunicationManager:
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(file_formatter)
 
-        # Создаем и настраиваем логгер
         logger = logging.getLogger('communication_logger')
         logger.addHandler(file_handler)
 
