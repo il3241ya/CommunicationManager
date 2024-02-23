@@ -1,5 +1,5 @@
 # Communication Manager
 
-# ZMQ
-# Socket type - PAIR (one host)
-# Socket type - PUSH PULL (diffrent hosts or docker containers)
+Service for sending and receiving protobuf documents
+
+ZMQ: https://zeromq.org/
