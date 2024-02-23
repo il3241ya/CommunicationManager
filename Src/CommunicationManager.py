@@ -189,7 +189,7 @@ class CommunicationManager:
 
 
 if __name__ == "__main__":
-    address = "tcp://*:5555"
+    address = "tcp://ip_addres:5555"
     cm1 = (
     CommunicationManagerBuilder(address)
     .with_error_handler()
@@ -197,11 +197,10 @@ if __name__ == "__main__":
     .build()
     )
     # Создание сокетов
-    cm1.create_socket(zmq.PAIR, 'bind')
+    cm1.create_socket(zmq.PAIR, 'connect')
     # Пример обмена сообщениями
     while True:
         mes_out = "CM1"
         cm1.send_message(mes_out)
-
         mes_in = cm1.receive_message()
         print(mes_in)
